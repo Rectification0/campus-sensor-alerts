@@ -42,33 +42,33 @@
 
 ## Phase 2 — Rules & engine core
 
-- [ ] **T2.1 Rule schemas**
+- [x] **T2.1 Rule schemas**
   - Create and patch, with kind ↔ window-field consistency checks.
   - Unit tests.
   - Deps: T1.4 · Spec: FR-4.1, FR-4.2
-- [ ] **T2.2 Rules repository**
+- [x] **T2.2 Rules repository**
   - Create, get, list, patch (merge + re-validate), set enabled.
   - Deps: T1.2, T2.1
-- [ ] **T2.3 Rule registry**
+- [x] **T2.3 Rule registry**
   - `Map<type, Rule[]>` of enabled rules; load, upsert, remove.
   - Unit tests.
   - Deps: T2.1 · Spec: FR-4.5
-- [ ] **T2.4 Operators**
+- [x] **T2.4 Operators**
   - gt / gte / lt / lte.
   - Unit tests.
   - Deps: T0.2 · Spec: FR-5
-- [ ] **T2.5 Window state**
+- [x] **T2.5 Window state**
   - Deque, running sum/count, monotonic min/max, eviction, late-reading skip, idle sweep.
   - Unit tests for each aggregation, equal timestamps, boundary eviction and late readings.
   - Deps: T0.2 · Spec: FR-6.1, FR-6.2, FR-6.4
-- [ ] **T2.6 Evaluator**
+- [x] **T2.6 Evaluator**
   - Sort by ts, THRESHOLD/WINDOW evaluation, coalesce per (rule, sensor) into upsert rows.
   - Unit tests.
   - Deps: T2.3, T2.4, T2.5 · Spec: FR-2.4, FR-5, FR-6, FR-7.2
-- [ ] **T2.7 Warm-up**
+- [x] **T2.7 Warm-up**
   - Replay readings from the DB into window state without alerts. Used at startup, on WINDOW rule create/edit/enable, and after a failed commit.
   - Deps: T2.5, T1.2 · Spec: FR-6.3
-- [ ] **T2.8 Rules routes**
+- [x] **T2.8 Rules routes**
   - POST, GET, GET :id, PATCH, enable, disable. Registry update and warm-up happen before responding.
   - Deps: T2.2, T2.3, T2.7 · Spec: FR-4
 

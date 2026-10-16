@@ -76,7 +76,8 @@ Task1_GDG/
 │  ├─ db/                  # pool.ts, migrate.ts, migrations/001_init.sql
 │  ├─ ingest/              # schemas.ts, routes.ts, buffer.ts, flusher.ts, repository.ts
 │  ├─ rules/               # schemas.ts, routes.ts, repository.ts, registry.ts
-│  ├─ engine/              # operators.ts, window.ts, evaluator.ts, warmup.ts
+│  ├─ common/              # errors.ts (HttpError -> specs §8 shape)
+│  ├─ engine/              # engine.ts (facade), operators.ts, window.ts, evaluator.ts, warmup.ts
 │  └─ alerts/              # schemas.ts, routes.ts, repository.ts
 ├─ simulator/              # index.ts (CLI), patterns.ts, sender.ts
 ├─ loadtest/               # run.ts, rules.seed.ts, report.ts

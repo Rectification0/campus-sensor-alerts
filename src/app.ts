@@ -1,14 +1,19 @@
+import { STATUS_CODES } from 'node:http';
 import Fastify, { LogController, type FastifyError } from 'fastify';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type pg from 'pg';
+import { HttpError } from './common/errors.js';
 import type { Config } from './config.js';
+import type { RuleEngine } from './engine/engine.js';
+import { rulesRoutes } from './rules/routes.js';
 
 export interface AppDeps {
   config: Config;
   pool: pg.Pool;
+  engine: RuleEngine;
 }
 
-export function buildApp({ config }: AppDeps) {
+export function buildApp({ config, pool, engine }: AppDeps) {
   const app = Fastify({
     logger: { level: config.logLevel },
     logController: new LogController({ disableRequestLogging: !config.requestLogging }),
@@ -34,10 +39,17 @@ export function buildApp({ config }: AppDeps) {
       request.log.error({ err }, 'request failed');
       return reply
         .status(statusCode)
-        .send({ statusCode, error: 'Internal Server Error', message: 'Internal Server Error' });
+        .send({ statusCode, error: STATUS_CODES[statusCode], message: STATUS_CODES[statusCode] });
     }
-    return reply.status(statusCode).send({ statusCode, error: err.name, message: err.message });
+    return reply.status(statusCode).send({
+      statusCode,
+      error: STATUS_CODES[statusCode],
+      message: err.message,
+      ...(err instanceof HttpError && err.errors ? { errors: err.errors } : {}),
+    });
   });
+
+  app.register(rulesRoutes, { prefix: '/api/v1', pool, engine });
 
   return app;
 }

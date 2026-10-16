@@ -5,5 +5,7 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     passWithNoTests: true,
     setupFiles: ['test/setup.ts'],
+    // Integration test files share one test database.
+    fileParallelism: false,
   },
 });

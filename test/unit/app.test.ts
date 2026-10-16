@@ -3,6 +3,7 @@ import type pg from 'pg';
 import { describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config.js';
+import { RuleEngine } from '../../src/engine/engine.js';
 
 function testApp() {
   const config = loadConfig({
@@ -10,7 +11,8 @@ function testApp() {
     LOG_LEVEL: 'silent',
     BODY_LIMIT_BYTES: '64',
   });
-  const app = buildApp({ config, pool: {} as pg.Pool });
+  const pool = {} as pg.Pool;
+  const app = buildApp({ config, pool, engine: new RuleEngine(pool) });
   app.post('/echo', { schema: { body: Type.Object({ value: Type.Number() }) } }, (req) => req.body);
   app.get('/boom', () => {
     throw new Error('secret detail');
