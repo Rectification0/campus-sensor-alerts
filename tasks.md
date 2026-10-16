@@ -140,17 +140,18 @@
 
 ## Phase 6 — Simulator
 
-- [ ] **T6.1 Patterns**
+- [x] **T6.1 Patterns**
   - Per-type baselines; normal / spike / drift.
   - Deps: T0.2 · Spec: FR-10.3
-- [ ] **T6.2 Sender**
+- [x] **T6.2 Sender**
   - undici Pool, single/batch modes, rate control, latency histogram.
   - Deps: T6.1 · Spec: FR-10.1, FR-10.2
-- [ ] **T6.3 CLI**
+- [x] **T6.3 CLI**
   - `node:util.parseArgs`, continuous mode, `--burst N` with summary output.
   - Deps: T6.2 · Spec: FR-10
-- [ ] **T6.4 E2E smoke**
+- [x] **T6.4 E2E smoke**
   - Server + seeded rules + `sim --pattern spike` → alerts exist.
+  - Done as an automated test (`test/integration/simulator.test.ts`): a real HTTP server on the test DB; rules are created in the test (the T7.1 seed script is still Phase 7).
   - Deps: T6.3, T7.1, T3.7
 
 ## Phase 7 — Load test & report

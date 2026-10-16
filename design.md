@@ -79,7 +79,7 @@ Task1_GDG/
 │  ├─ common/              # errors.ts (HttpError -> specs §8 shape), ajv.ts (strict/coercing validators)
 │  ├─ engine/              # engine.ts (facade), operators.ts, window.ts, evaluator.ts, warmup.ts
 │  └─ alerts/              # schemas.ts, routes.ts, repository.ts
-├─ simulator/              # index.ts (CLI), patterns.ts, sender.ts
+├─ simulator/              # index.ts (CLI), run.ts, patterns.ts, sender.ts
 ├─ loadtest/               # run.ts, rules.seed.ts, report.ts
 ├─ test/unit/  test/integration/
 └─ docs/ARCHITECTURE.md  docs/LOAD_TEST_REPORT.md
@@ -343,13 +343,17 @@ Per-type baselines (all bounded random walks):
 | co2 | 600 ± 150 | ppm |
 
 Patterns:
-- `spike`: 2 % chance of a +40 % value.
-- `drift`: +0.05 per second ramp.
+- `normal`: the bounded random walk alone.
+- `spike`: 2 % chance of a value 3–4 spreads above baseline (e.g. 31–34 °C, 75–85 %, 1050–1200 ppm), so it reliably crosses typical THRESHOLD rules. (A flat +40 % would not: 19 °C × 1.4 = 26.6 °C.)
+- `drift`: the walk plus a ramp of one spread per minute for every type (+3 °C, +10 %, +150 ppm per minute), which moves time-window averages past WINDOW thresholds within minutes. (A flat +0.05/s would be meaningless for CO₂.)
 
 Other details:
 - Sensor ids follow `{building}-floor-{n}` (library, hostel-a, lab, cafeteria, …).
-- `sender.ts`: undici `Pool` with keep-alive and configurable connections; latency histogram.
-- `--burst N`: pre-generates N readings, shapes them as singles or batches, fires them all within ~1 s, and prints a summary table plus JSON.
+- `patterns.ts`: baselines, patterns, round-robin `ReadingGenerator` over every (sensor, type) series, seedable PRNG (mulberry32) for deterministic tests.
+- `sender.ts`: undici `Pool` with keep-alive and configurable connections; per-request latency, status counts, nearest-rank percentiles.
+- `run.ts`: `runBurst()` and `runContinuous()`, shared by the CLI, the E2E test and the Phase 7 load-test harness.
+- `--burst N`: pre-generates N readings, shapes them as singles or batches, dispatches them all at once (the connection pool bounds concurrency), and prints a summary table, or JSON with `--json`.
+- Continuous mode: each 100 ms tick sends the shortfall against the `--rate` schedule; in-flight requests are capped at 2 × connections, so a slow service lowers the achieved rate (reported) instead of queueing without bound.
 
 ## 12. Load-test harness (`loadtest/run.ts`)
 
