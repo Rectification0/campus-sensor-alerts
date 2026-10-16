@@ -2,6 +2,7 @@ import { STATUS_CODES } from 'node:http';
 import Fastify, { LogController, type FastifyError } from 'fastify';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type pg from 'pg';
+import { alertsRoutes } from './alerts/routes.js';
 import { createAjv } from './common/ajv.js';
 import { HttpError } from './common/errors.js';
 import type { Config } from './config.js';
@@ -80,6 +81,7 @@ export function buildApp({ config, pool, engine }: AppDeps) {
 
   app.register(ingestRoutes, { prefix: '/api/v1', pipeline, batchMaxItems: config.batchMaxItems });
   app.register(rulesRoutes, { prefix: '/api/v1', pool, engine });
+  app.register(alertsRoutes, { prefix: '/api/v1', pool });
 
   return app;
 }

@@ -99,13 +99,13 @@
 
 ## Phase 4 — Alerts API
 
-- [ ] **T4.1 Alert queries**
+- [x] **T4.1 Alert queries**
   - List newest first with limit + cursor; get by id.
   - Deps: T1.2 · Spec: FR-8
-- [ ] **T4.2 Lifecycle transitions**
+- [x] **T4.2 Lifecycle transitions**
   - Conditional UPDATEs, idempotent same-state, 404/409.
   - Deps: T1.2 · Spec: FR-9, NFR-5
-- [ ] **T4.3 Alerts routes**
+- [x] **T4.3 Alerts routes**
   - GET list, GET :id, POST acknowledge, POST resolve.
   - Deps: T4.1, T4.2 · Spec: FR-8, FR-9
 
