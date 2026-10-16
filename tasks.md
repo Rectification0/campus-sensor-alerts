@@ -171,17 +171,25 @@
 
 ## Phase 8 — Documentation & submission
 
-- [ ] **T8.1 `docs/ARCHITECTURE.md`**
+- [x] **T8.1 `docs/ARCHITECTURE.md`**
   - Diagram, data flow, components, trade-offs (design §9), scale-out path, limitations.
   - Deps: T7.4 · Spec: FR-12.2
-- [ ] **T8.2 `README.md`**
+- [x] **T8.2 `README.md`**
   - Prerequisites (Node ≥ 22, pnpm, PostgreSQL ≥ 18 — schema uses built-in `uuidv7()`), setup, `.env`, migrate, run, test, simulate, load-test, curl examples.
   - Deps: T6.4 · Spec: FR-12.1
-- [ ] **T8.3 Final checks**
+- [x] **T8.3 Final checks**
   - `pnpm lint && pnpm test && pnpm build`.
   - Fresh-clone walkthrough following the README.
   - Every FR/NFR is covered in the table below.
   - Deps: T8.1, T8.2
+  - Done (2026-10-16):
+    - **Checks:** `pnpm lint`, `typecheck`, `test` (109/109) and `build` all pass.
+    - **Fresh-clone walkthrough** following the README on separate databases, all working: install, `.env`, `db:create`, `db:migrate`, `build` + `start`, every curl example (outputs as documented), simulator, `db:test:reset` + tests, `loadtest`.
+    - **Fixes from the walkthrough:**
+      - Node engine raised to `>=22.9` (needed for `--env-file-if-exists`).
+      - `packageManager: pnpm@11.24.0` pinned.
+      - LT-C repeatability measured: 11 extra runs. A CPU profile shows per-response socket writes as the bottleneck, and the README, ARCHITECTURE.md and the report now state that LT-C meets its latency targets in most runs, not all.
+      - The harness now stops the server gracefully via the probe.
 
 ---
 

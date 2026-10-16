@@ -38,6 +38,10 @@ if (process.send) {
         eventLoopDelayMaxMs: Math.round(loopDelay.max / 1e6),
         peakMemoryMb: Math.round(peakRss / 1024 / 1024),
       });
+    } else if (msg === 'probe:shutdown') {
+      // Windows has no real SIGTERM for child processes; trigger the server's own
+      // graceful-shutdown handler instead of a hard kill.
+      process.emit('SIGTERM', 'SIGTERM');
     }
   });
   // The IPC channel must not keep the server alive on its own.

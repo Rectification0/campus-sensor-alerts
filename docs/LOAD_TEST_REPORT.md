@@ -71,12 +71,38 @@ Mode `single`, 10,000 requests over 512 client connections.
 
 ### Headline
 
-All three shapes of the 10,000-readings-in-one-second burst pass on a 15 W laptop CPU. Every run had zero failed requests, and the database row count matched the accepted count exactly. Durability was not relaxed: `synchronous_commit` stays `on`, and every `202` waits for the commit.
+In the recorded run above, all three burst shapes pass. Further validation runs show:
+- **Batches** pass with a wide margin every time.
+- **Single-reading bursts (LT-C)** pass in most runs but not all on this 15 W laptop (see *Repeatability* below).
 
-| Shape | Typical completion | Throughput | Headroom against the 3 s limit (FR-3.2) |
+In every run of every scenario there were zero failed requests, and the database row count matched the accepted count exactly (FR-3.1). Durability was never relaxed: `synchronous_commit` stays `on`, and every `202` waits for the commit.
+
+| Shape | Completion seen | Throughput | Margin against the 3 s limit (FR-3.2) |
 |---|---|---|---|
-| Batches (LT-A, LT-B) | ~0.16–0.26 s | ~40–60k readings/s | ~10× |
-| Single readings (LT-C) | ~1.0–1.3 s | ~8–10k requests/s | ~2–3× |
+| Batches (LT-A, LT-B) | 0.14–0.44 s in every probe-measured run with default settings | ~20–70k readings/s | ≥ 5×, every run |
+| Single readings (LT-C, 512 connections) | 0.81–3.39 s | ~3–12k requests/s | ~1–3×; see below |
+
+### Repeatability of LT-C
+
+After the recorded run, LT-C was repeated 11 more times: once from a fresh clone, then 2 × 5 runs. Runs with the CPU profiler attached are excluded.
+
+| Validation runs | Completion | Missed p99 < 2 s (NFR-2) | Missed completion < 3 s (FR-3.2) |
+|---|---|---|---|
+| 11 | 1.56–3.39 s (median 2.07 s) | 5 | 2 (both were the first run after warm-up) |
+
+- **FR-3.1 always held:** 0 failed requests, all 10,000 readings stored, every run.
+- **The completion and latency targets** were met in the recorded run, but in only 6 of 11 validation runs for p99, and in 9 of 11 for the 3 s limit.
+- **Why it varies:** the same work takes more CPU time in slow runs (event loop typically 70–86% busy, versus 61–71% in the recorded run). This matches a hybrid laptop CPU (2 performance + 10 efficiency cores, 15 W) whose effective speed depends on which core the server thread lands on and on boost and thermal state.
+- **Why it is close to the limit at all:** a CPU profile of the server under LT-C (`LOADTEST_SERVER_NODE_ARGS="--cpu-prof"`) attributes **~36% of busy CPU time to `writev`**, the system call that writes each HTTP response to its socket (Fastify → `http` → `net`). Other contributions:
+  - application code (rule evaluation, sliding windows, validation): ~9%;
+  - the PostgreSQL driver: ~5%;
+  - Fastify: ~4%;
+  - GC: ~4%.
+
+  One socket write per response is inherent to single-reading requests, and on this Windows machine it is expensive. No application change removes it. What would:
+  - **batching**, the same 10,000 readings in ≥ 100-reading batches: ≥ 5× margin in every run;
+  - a **Linux** host, where socket writes are much cheaper;
+  - **more HTTP processes** in front of a single window owner (scale-out path in [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 ### Where the time goes
 
@@ -139,7 +165,7 @@ The harness now measures the server from the inside, over IPC, without starting 
 - **The load generator shares the machine** with the server and PostgreSQL (14 logical threads on 12 hybrid cores, 15 W). On separate machines the server would have more CPU to itself.
 - **Variance:** first runs after a pause are sometimes slower (e.g. LT-C run 1). The pass criteria are applied to every run, not to averages.
 - **Window memory grows with reading rate × window length.** Server memory rose from 122 MB to 255 MB across this test, because each reading is held in every matching time window (up to 10 minutes). That's fine for bursts. For sustained 10k/s with 10-minute windows, samples should be pre-aggregated into fixed per-second buckets per (rule, sensor). That would make memory proportional to window seconds instead of readings.
-- **A single process is a deliberate design choice:** window state has one owner (design §9). Going beyond one event loop's ~10k single requests/s needs:
+- **A single process is a deliberate design choice:** window state has one owner (design §9). Going beyond one event loop's ~3–12k single requests/s (on this laptop) needs:
   - batching at sensor gateways (already ~5× cheaper), or
   - partitioning sensors across processes, for example a log such as Kafka partitioned by `sensorId`.
 

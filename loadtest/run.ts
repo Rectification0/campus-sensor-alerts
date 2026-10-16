@@ -265,8 +265,19 @@ async function main() {
     log(allPass ? 'ALL SCENARIOS PASS' : 'SOME RUNS FAILED');
     process.exitCode = allPass ? 0 : 1;
   } finally {
-    server.kill();
+    await stopServer(server);
     await db.end();
+  }
+}
+
+/** Graceful shutdown through the probe (exercises the server's SIGTERM path); hard kill as fallback. */
+async function stopServer(server: ChildProcess): Promise<void> {
+  if (server.exitCode !== null) return;
+  const exited = new Promise<boolean>((resolve) => server.once('exit', () => resolve(true)));
+  server.send('probe:shutdown');
+  if (!(await Promise.race([exited, sleep(10_000).then(() => false)]))) {
+    log('server did not exit gracefully within 10 s; killing it');
+    server.kill();
   }
 }
 

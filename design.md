@@ -365,4 +365,4 @@ Other details:
 
 **Server measurement:** the probe runs inside the server and answers over IPC. It reports CPU time ÷ wall time, event-loop utilization, max event-loop delay and peak RSS. It replaced `pidusage`, which on Windows 11 (no `wmic`) starts a `powershell.exe` per sample and slowed the system it was measuring by 3–10× (see the report's analysis).
 
-**Results** (`docs/LOAD_TEST_REPORT.md`): all scenarios pass. Batches complete in ~0.16–0.26 s, and 10,000 single requests over 512 connections in ~1.0–1.3 s. The flush defaults (3 / 2000 / 10 ms) won the tuning sweep.
+**Results** (`docs/LOAD_TEST_REPORT.md`): batches (LT-A, LT-B) complete in 0.14–0.44 s and pass every run. 10,000 single requests over 512 connections take 0.81–3.39 s. They never fail a request, but they meet the latency targets in most runs, not all; per-response socket writes on Windows are the bottleneck (CPU profile). The flush defaults (3 / 2000 / 10 ms) won the tuning sweep.
