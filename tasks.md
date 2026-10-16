@@ -74,26 +74,26 @@
 
 ## Phase 3 — Ingestion with reply-after-commit
 
-- [ ] **T3.1 Reading schemas**
+- [x] **T3.1 Reading schemas**
   - Reading schema, pre-compiled per-item validator, batch envelope.
   - Deps: T1.4 · Spec: FR-1.2, FR-2.1, FR-2.3
-- [ ] **T3.2 Ingest buffer with tickets**
+- [x] **T3.2 Ingest buffer with tickets**
   - All-or-nothing push, drain, per-request completion tickets.
   - Unit tests.
   - Deps: T0.2 · Spec: FR-3.3
-- [ ] **T3.3 Readings + alerts transaction**
+- [x] **T3.3 Readings + alerts transaction**
   - `unnest` reading insert + sorted alert upsert in one transaction.
   - Deps: T1.2, T1.3 · Spec: FR-1.1, FR-7, NFR-3
-- [ ] **T3.4 Flusher**
+- [x] **T3.4 Flusher**
   - Size and interval triggers, in-order evaluation, overlapping commits, ticket resolution on commit, retry of prepared rows within the budget, then reject tickets (503) and warm-up of dirty windows. `flushNow()` hook for tests.
   - Deps: T3.2, T3.3, T2.6, T2.7 · Spec: FR-1.1, FR-3, NFR-3, NFR-4
-- [ ] **T3.5 Ingest routes**
+- [x] **T3.5 Ingest routes**
   - `POST /readings` and `POST /readings/batch`: await the ticket, then 202. Covers partial acceptance and 400/413/503 + Retry-After.
   - Deps: T3.1, T3.4 · Spec: FR-1, FR-2, FR-3.3
-- [ ] **T3.6 Graceful shutdown**
+- [x] **T3.6 Graceful shutdown**
   - Stop accepting, drain the buffer, await commits, end the pool.
   - Deps: T3.4, T1.5 · Spec: NFR-4
-- [ ] **T3.7 Startup sequence**
+- [x] **T3.7 Startup sequence**
   - migrate check → load registry → warm-up → listen.
   - Deps: T2.8, T3.5
 

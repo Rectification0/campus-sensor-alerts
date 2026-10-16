@@ -42,6 +42,23 @@ export class RuleEngine {
     this.registry.upsert(rule);
   }
 
+  /**
+   * Rebuilds the windows of enabled WINDOW rules for the given metric types from stored
+   * readings. Used after a failed commit, whose readings were added to windows but never stored.
+   */
+  async rewarmTypes(types: ReadonlySet<string>): Promise<void> {
+    const rules = [...types].flatMap((t) =>
+      this.registry.forType(t).filter((r) => r.kind === 'WINDOW'),
+    );
+    if (!rules.length) return;
+    const built = await buildWindows(this.db, rules);
+    for (const rule of rules) {
+      // Skip rules changed or disabled while the query ran; applyRule handled those.
+      if (this.registry.get(rule.id) === rule)
+        this.windows.replaceRule(rule.id, built.get(rule.id)!);
+    }
+  }
+
   evaluate(readings: readonly Reading[], now = Date.now()): EvaluationResult {
     return evaluate(readings, this.registry, this.windows, now);
   }

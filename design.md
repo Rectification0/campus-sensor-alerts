@@ -55,13 +55,13 @@ flowchart LR
 ```
 
 ### Ingestion path: reply-after-commit ("group commit")
-1. The request is validated. Valid readings go into the buffer together with a **completion handle** for the request.
-2. The flusher drains up to `FLUSH_MAX_ROWS` readings from many requests at once.
+1. The request is validated. Its valid readings are queued **as one unit**, together with the request's resolve/reject callbacks.
+2. The flusher drains whole requests, up to `FLUSH_MAX_ROWS` readings in total.
 3. The flusher evaluates the batch, which produces readings and alert upserts.
 4. In **one transaction** it inserts the readings and upserts the alerts, then commits.
 5. On commit, it resolves every request whose readings were in the batch → `202`.
 
-A `202` therefore means the reading and its alerts are durably stored (NFR-3). A request whose readings span several flush batches replies once all of them commit. Throughput still comes from batching: one commit serves thousands of readings, and the extra cost is a few tens of ms of latency per request.
+A `202` therefore means the reading and its alerts are durably stored (NFR-3). A request is never split across transactions, so it either fully succeeds (`202`) or fully fails (`503`, nothing stored). Throughput still comes from batching: one commit serves thousands of readings, and the extra cost is a few tens of ms of latency per request.
 
 ## 3. Repository layout
 
@@ -74,9 +74,9 @@ Task1_GDG/
 │  ├─ app.ts               # buildApp() — used by server and tests
 │  ├─ config.ts
 │  ├─ db/                  # pool.ts, migrate.ts, migrations/001_init.sql
-│  ├─ ingest/              # schemas.ts, routes.ts, buffer.ts, flusher.ts, repository.ts
+│  ├─ ingest/              # schemas.ts, routes.ts, buffer.ts, pipeline.ts (flusher), repository.ts
 │  ├─ rules/               # schemas.ts, routes.ts, repository.ts, registry.ts
-│  ├─ common/              # errors.ts (HttpError -> specs §8 shape)
+│  ├─ common/              # errors.ts (HttpError -> specs §8 shape), ajv.ts (strict/coercing validators)
 │  ├─ engine/              # engine.ts (facade), operators.ts, window.ts, evaluator.ts, warmup.ts
 │  └─ alerts/              # schemas.ts, routes.ts, repository.ts
 ├─ simulator/              # index.ts (CLI), patterns.ts, sender.ts
@@ -184,12 +184,12 @@ Base path `/api/v1`, JSON in and out. Error shape: specs §8.
 ## 7. Components
 
 ### 7.1 Ingest buffer (`ingest/buffer.ts`)
-- A fixed-capacity queue of `{reading, ticket}` entries.
-- Each request creates one `ticket`: `{ pending: n, resolve, reject }`. The ticket resolves when all *n* of its readings are committed.
-- `push(readings, ticket)` is **all-or-nothing**. If free space is smaller than the request's valid count, it returns false and the route replies `503 Retry-After: 1` (FR-3.3).
+- A FIFO of pending requests `{ readings, resolve, reject }`. Capacity is counted in readings.
+- `push(request)` is **all-or-nothing**. If free space is smaller than the request's valid count, it returns false and the route replies `503 Retry-After: 1` (FR-3.3).
+- `drain(max)` takes **whole requests** totalling at most `max` readings (always at least one), so each request's readings commit in exactly one transaction.
 - Node is single-threaded, so no locking is needed.
 
-### 7.2 Flusher / group commit (`ingest/flusher.ts`)
+### 7.2 Flusher / group commit (`ingest/pipeline.ts`)
 Triggers: buffer depth ≥ `FLUSH_MAX_ROWS`, or `FLUSH_INTERVAL_MS` elapsed since the oldest queued entry. Up to `FLUSH_CONCURRENCY` transactions run in flight.
 
 Per batch:
@@ -198,16 +198,19 @@ Per batch:
    ```sql
    BEGIN;
    INSERT INTO readings (sensor_id, type, value, recorded_at)
-     SELECT * FROM unnest($1::text[], $2::text[], $3::float8[], $4::timestamptz[]);
+     SELECT s, t, v, to_timestamp(ms / 1000.0)
+     FROM unnest($1::text[], $2::text[], $3::float8[], $4::float8[]) AS u(s, t, v, ms);
    -- alert upsert (§7.6), rows sorted by (rule_id, sensor_id) to avoid deadlocks between concurrent flushes
    COMMIT;
    ```
    Four array parameters avoid the 65,535 bind-parameter limit.
-3. **Acknowledge.** For each entry, decrement `ticket.pending`. At 0, resolve the ticket and the route replies `202`.
+3. **Acknowledge.** Resolve every request in the batch; each route replies `202`.
 4. **Failure.** Retry the *same prepared rows* with exponential backoff (50 ms → 1 s) within `COMMIT_RETRY_BUDGET_MS`. Evaluation is not repeated, so window state is not double-counted. If the budget runs out:
-   - reject the batch's tickets, so their requests get `503` and nothing was committed (FR-3.3);
-   - mark the affected window keys dirty and rebuild them from the DB (warm-up, §7.5), because they contain readings that were never stored.
-5. **Graceful shutdown** (SIGINT/SIGTERM): stop accepting connections, flush until the buffer is empty, wait for in-flight commits, then end the pool (NFR-4).
+   - reject the batch's requests, so they get `503` and nothing was committed (FR-3.3);
+   - rebuild the windows of enabled WINDOW rules for the batch's metric types from the DB (warm-up, §7.5), because they contain readings that were never stored.
+5. **Graceful shutdown** (SIGINT/SIGTERM): `app.close()` stops accepting connections and waits for in-flight requests; its `onClose` hook flushes until the buffer is empty and in-flight commits finish; then the pool ends (NFR-4).
+
+**Validation:** request bodies use a strict Ajv instance (no type coercion; unknown properties rejected, not stripped). Query strings and params use a coercing instance.
 
 ### 7.3 Rule registry (`rules/registry.ts`)
 - An in-memory `Map<type, Rule[]>` of **enabled** rules.
@@ -324,7 +327,7 @@ Node `cluster` is not used, because window state must have a single owner.
 
 | Layer | What | Tooling |
 |---|---|---|
-| Unit | Operators; window add/evict/avg/min/max/late readings; evaluator coalescing; buffer capacity and tickets; rule cross-field validation | Vitest |
+| Unit | Operators; window add/evict/avg/min/max/late readings; evaluator coalescing; buffer capacity and whole-request draining; rule cross-field validation | Vitest |
 | Integration | Every endpoint via `app.inject` against `campus_sensors_test`. Covers: 202 only after the row exists; partial batch; 400/413; 503 when the buffer is full; 503 with no rows stored when the DB is unreachable; threshold alert; window alert incl. history from before rule creation; de-dup and `triggerCount`; new alert after resolve; disabled rule doesn't fire; lifecycle 200/404/409; pagination | Vitest + PG 18 |
 | E2E smoke | Start server, seed rules, `pnpm sim --pattern spike --duration 10`, assert alerts exist | npm script |
 | Load | LT-A..C | `loadtest/run.ts` |
