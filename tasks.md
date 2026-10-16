@@ -26,18 +26,18 @@
 
 ## Phase 1 — Database & app skeleton
 
-- [ ] **T1.1 Migration runner**
+- [x] **T1.1 Migration runner**
   - `src/db/migrate.ts`.
   - Deps: T0.5
-- [ ] **T1.2 `001_init.sql`**
+- [x] **T1.2 `001_init.sql`**
   - readings, rules, alerts, enums, checks, `alerts_one_active` partial unique index (design §5).
   - Deps: T1.1 · Spec: FR-7.3
-- [ ] **T1.3 `pg` pool**
+- [x] **T1.3 `pg` pool**
   - Deps: T0.4
-- [ ] **T1.4 `buildApp()`**
+- [x] **T1.4 `buildApp()`**
   - Fastify + TypeBox provider, body limit, pino with request-logging toggle, error handler (specs §8).
   - Deps: T0.2
-- [ ] **T1.5 `server.ts` bootstrap**
+- [x] **T1.5 `server.ts` bootstrap**
   - Deps: T1.4
 
 ## Phase 2 — Rules & engine core
@@ -163,7 +163,7 @@
   - Diagram, data flow, components, trade-offs (design §9), scale-out path, limitations.
   - Deps: T7.4 · Spec: FR-12.2
 - [ ] **T8.2 `README.md`**
-  - Prerequisites (Node ≥ 22, pnpm, PostgreSQL ≥ 16), setup, `.env`, migrate, run, test, simulate, load-test, curl examples.
+  - Prerequisites (Node ≥ 22, pnpm, PostgreSQL ≥ 18 — schema uses built-in `uuidv7()`), setup, `.env`, migrate, run, test, simulate, load-test, curl examples.
   - Deps: T6.4 · Spec: FR-12.1
 - [ ] **T8.3 Final checks**
   - `pnpm lint && pnpm test && pnpm build`.
