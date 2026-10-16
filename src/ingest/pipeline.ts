@@ -94,6 +94,7 @@ export class IngestPipeline {
 
   private async flush(requests: PendingRequest[]): Promise<void> {
     const readings = requests.flatMap((r) => r.readings);
+    const started = performance.now();
     // Evaluate synchronously at drain time so window state sees batches in order,
     // even though their commits may overlap.
     let evaluation;
@@ -111,9 +112,21 @@ export class IngestPipeline {
       );
     }
 
+    const evaluated = performance.now();
     try {
       const result = await this.commitWithRetry(readings, evaluation.alerts);
       for (const r of requests) r.resolve();
+      this.opts.log.debug(
+        {
+          readings: readings.length,
+          requests: requests.length,
+          alertRows: evaluation.alerts.length,
+          evaluateMs: Math.round(evaluated - started),
+          commitMs: Math.round(performance.now() - evaluated),
+          queued: this.buffer.depth,
+        },
+        'batch committed',
+      );
       if (result.alertsCreated) {
         this.opts.log.info({ alertsCreated: result.alertsCreated }, 'alerts created');
       }

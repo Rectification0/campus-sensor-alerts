@@ -1,0 +1,357 @@
+{
+  "generatedAt": "2026-10-16T17:41:19.213Z",
+  "command": "pnpm loadtest",
+  "machine": {
+    "cpu": "Intel(R) Core(TM) Ultra 5 125U",
+    "logicalCores": 14,
+    "memoryGb": 15,
+    "os": "Windows_NT 10.0.26300 (x64)",
+    "node": "v24.12.0",
+    "postgres": "PostgreSQL 18.1 on x86_64-windows"
+  },
+  "setup": {
+    "readingsPerBurst": 10000,
+    "sensors": 200,
+    "types": ["temperature", "humidity", "co2"],
+    "rules": 24,
+    "runsPerScenario": 3,
+    "server": {
+      "FLUSH_MAX_ROWS": 2000,
+      "FLUSH_INTERVAL_MS": 10,
+      "FLUSH_CONCURRENCY": 3,
+      "PG_POOL_MAX": 10,
+      "BUFFER_CAPACITY": 100000
+    }
+  },
+  "scenarios": [
+    {
+      "id": "LT-A",
+      "title": "10 batch requests x 1000 readings",
+      "mode": "batch",
+      "batchSize": 1000,
+      "connections": 10
+    },
+    {
+      "id": "LT-B",
+      "title": "100 batch requests x 100 readings",
+      "mode": "batch",
+      "batchSize": 100,
+      "connections": 100
+    },
+    {
+      "id": "LT-C",
+      "title": "10,000 single-reading requests",
+      "mode": "single",
+      "batchSize": 1,
+      "connections": 512
+    }
+  ],
+  "results": [
+    {
+      "scenario": "LT-A",
+      "run": 1,
+      "summary": {
+        "requests": 10,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10
+        },
+        "errors": 0,
+        "durationMs": 163.5,
+        "readingsPerSecond": 61179,
+        "latencyMs": {
+          "min": 84.5,
+          "p50": 130.2,
+          "p95": 161.4,
+          "p99": 161.4,
+          "max": 161.4,
+          "mean": 125.4
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5319,
+      "server": {
+        "avgCpuPercent": 81,
+        "eventLoopUtilizationPercent": 56,
+        "eventLoopDelayMaxMs": 42,
+        "peakMemoryMb": 122
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-A",
+      "run": 2,
+      "summary": {
+        "requests": 10,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10
+        },
+        "errors": 0,
+        "durationMs": 158.3,
+        "readingsPerSecond": 63173,
+        "latencyMs": {
+          "min": 87.5,
+          "p50": 112.3,
+          "p95": 155.1,
+          "p99": 155.1,
+          "max": 155.1,
+          "mean": 122.1
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5413,
+      "server": {
+        "avgCpuPercent": 27,
+        "eventLoopUtilizationPercent": 41,
+        "eventLoopDelayMaxMs": 35,
+        "peakMemoryMb": 153
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-A",
+      "run": 3,
+      "summary": {
+        "requests": 10,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10
+        },
+        "errors": 0,
+        "durationMs": 186.1,
+        "readingsPerSecond": 53725,
+        "latencyMs": {
+          "min": 116.6,
+          "p50": 128.4,
+          "p95": 178.1,
+          "p99": 178.1,
+          "max": 178.1,
+          "mean": 139.3
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5301,
+      "server": {
+        "avgCpuPercent": 30,
+        "eventLoopUtilizationPercent": 40,
+        "eventLoopDelayMaxMs": 26,
+        "peakMemoryMb": 162
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-B",
+      "run": 1,
+      "summary": {
+        "requests": 100,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 100
+        },
+        "errors": 0,
+        "durationMs": 217.9,
+        "readingsPerSecond": 45896,
+        "latencyMs": {
+          "min": 115.1,
+          "p50": 149.2,
+          "p95": 212.1,
+          "p99": 212.1,
+          "max": 212.1,
+          "mean": 162.3
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5289,
+      "server": {
+        "avgCpuPercent": 32,
+        "eventLoopUtilizationPercent": 39,
+        "eventLoopDelayMaxMs": 27,
+        "peakMemoryMb": 176
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-B",
+      "run": 2,
+      "summary": {
+        "requests": 100,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 100
+        },
+        "errors": 0,
+        "durationMs": 194.3,
+        "readingsPerSecond": 51462,
+        "latencyMs": {
+          "min": 135.3,
+          "p50": 159.6,
+          "p95": 182.4,
+          "p99": 182.6,
+          "max": 182.6,
+          "mean": 160.3
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5515,
+      "server": {
+        "avgCpuPercent": 57,
+        "eventLoopUtilizationPercent": 41,
+        "eventLoopDelayMaxMs": 22,
+        "peakMemoryMb": 183
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-B",
+      "run": 3,
+      "summary": {
+        "requests": 100,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 100
+        },
+        "errors": 0,
+        "durationMs": 263,
+        "readingsPerSecond": 38027,
+        "latencyMs": {
+          "min": 149.5,
+          "p50": 174.8,
+          "p95": 258,
+          "p99": 258,
+          "max": 258,
+          "mean": 199.6
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5304,
+      "server": {
+        "avgCpuPercent": 55,
+        "eventLoopUtilizationPercent": 51,
+        "eventLoopDelayMaxMs": 42,
+        "peakMemoryMb": 193
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-C",
+      "run": 1,
+      "summary": {
+        "requests": 10000,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10000
+        },
+        "errors": 0,
+        "durationMs": 1273.8,
+        "readingsPerSecond": 7851,
+        "latencyMs": {
+          "min": 340.5,
+          "p50": 779.9,
+          "p95": 1171.8,
+          "p99": 1187.1,
+          "max": 1190.5,
+          "mean": 773.6
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5353,
+      "server": {
+        "avgCpuPercent": 96,
+        "eventLoopUtilizationPercent": 65,
+        "eventLoopDelayMaxMs": 30,
+        "peakMemoryMb": 239
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-C",
+      "run": 2,
+      "summary": {
+        "requests": 10000,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10000
+        },
+        "errors": 0,
+        "durationMs": 1020.7,
+        "readingsPerSecond": 9797,
+        "latencyMs": {
+          "min": 224.5,
+          "p50": 630.8,
+          "p95": 953.6,
+          "p99": 974.8,
+          "max": 976.8,
+          "mean": 612.3
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5413,
+      "server": {
+        "avgCpuPercent": 79,
+        "eventLoopUtilizationPercent": 71,
+        "eventLoopDelayMaxMs": 22,
+        "peakMemoryMb": 240
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "scenario": "LT-C",
+      "run": 3,
+      "summary": {
+        "requests": 10000,
+        "readingsSent": 10000,
+        "accepted": 10000,
+        "rejected": 0,
+        "statusCounts": {
+          "202": 10000
+        },
+        "errors": 0,
+        "durationMs": 1018.3,
+        "readingsPerSecond": 9820,
+        "latencyMs": {
+          "min": 290.8,
+          "p50": 630,
+          "p95": 941,
+          "p99": 958.6,
+          "max": 963.4,
+          "mean": 625.5
+        }
+      },
+      "rowsAdded": 10000,
+      "alertTriggersAdded": 5495,
+      "server": {
+        "avgCpuPercent": 67,
+        "eventLoopUtilizationPercent": 61,
+        "eventLoopDelayMaxMs": 22,
+        "peakMemoryMb": 255
+      },
+      "pass": true,
+      "failures": []
+    }
+  ]
+}

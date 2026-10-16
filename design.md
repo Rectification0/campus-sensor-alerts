@@ -27,7 +27,7 @@ What's on the development machine (checked 2026-10-16):
 | Migrations | Plain SQL files + tiny runner | No extra tool. |
 | Tests | **Vitest** + `fastify.inject`, against a local test DB `campus_sensors_test` | Fast, TS-native, real-DB integration. |
 | Simulator HTTP client | **undici** | Node's native fast client with keep-alive pooling. |
-| Load generator | **autocannon** (npm) + simulator `--burst` | k6 isn't installed; autocannon is pure Node. |
+| Load generator | The project's simulator (`runBurst`, undici) | k6 isn't installed. The simulator sends exactly N distinct readings in any shape, so autocannon was not needed. |
 | Lint/format | ESLint (typescript-eslint) + Prettier | |
 | Dev runner | `tsx` (dev), `tsc` build (prod and load test) | |
 
@@ -80,7 +80,7 @@ Task1_GDG/
 │  ├─ engine/              # engine.ts (facade), operators.ts, window.ts, evaluator.ts, warmup.ts
 │  └─ alerts/              # schemas.ts, routes.ts, repository.ts
 ├─ simulator/              # index.ts (CLI), run.ts, patterns.ts, sender.ts
-├─ loadtest/               # run.ts, rules.seed.ts, report.ts
+├─ loadtest/               # run.ts (harness), seed-rules.ts, report.ts, probe.mjs
 ├─ test/unit/  test/integration/
 └─ docs/ARCHITECTURE.md  docs/LOAD_TEST_REPORT.md
 ```
@@ -357,9 +357,12 @@ Other details:
 
 ## 12. Load-test harness (`loadtest/run.ts`)
 
-1. Assume the server is running from the prod build with `REQUEST_LOGGING=false`.
-2. Seed ≥ 20 rules (`rules.seed.ts`).
-3. Record `SELECT count(*) FROM readings`.
-4. For each of LT-A/B/C × 3 runs: fire the burst. Record latency percentiles, completion time, errors and `503`s, and server CPU and memory (sampled with `pidusage`).
-5. Re-count rows and assert that new rows = accepted readings.
-6. `report.ts` writes `docs/LOAD_TEST_REPORT.md`: machine specs, method, results tables, pass/fail and bottleneck analysis.
+1. Recreate a dedicated database (`campus_sensors_loadtest`, or `LOADTEST_DATABASE_URL`) and migrate it, so the main database is never touched.
+2. Spawn the prod build (`dist/server.js`) with `REQUEST_LOGGING=false`, preloading `loadtest/probe.mjs`.
+3. Seed 24 rules (`seed-rules.ts`: per type 3 THRESHOLD + 5 WINDOW, some firing on normal data), then run an excluded warm-up burst.
+4. For each of LT-A/B/C × 3 runs: record `readings` count and alert triggers, start the probe, fire the burst with `runBurst`, stop the probe, re-count.
+5. `report.ts` evaluates each run against FR-3.1, FR-3.2, the row-count check and NFR-2, then rewrites the generated section of `docs/LOAD_TEST_REPORT.md`, keeping the hand-written analysis. Raw data goes to `docs/load-test-results.json`.
+
+**Server measurement:** the probe runs inside the server and answers over IPC. It reports CPU time ÷ wall time, event-loop utilization, max event-loop delay and peak RSS. It replaced `pidusage`, which on Windows 11 (no `wmic`) starts a `powershell.exe` per sample and slowed the system it was measuring by 3–10× (see the report's analysis).
+
+**Results** (`docs/LOAD_TEST_REPORT.md`): all scenarios pass. Batches complete in ~0.16–0.26 s, and 10,000 single requests over 512 connections in ~1.0–1.3 s. The flush defaults (3 / 2000 / 10 ms) won the tuning sweep.

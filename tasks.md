@@ -12,7 +12,7 @@
 - [x] **T0.2 Scaffold project with pnpm**
   - `package.json` (`"type": "module"`, engines node ≥ 22), strict `tsconfig.json`.
   - Dependencies: fastify, @sinclair/typebox, @fastify/type-provider-typebox, pg, undici.
-  - Dev dependencies: typescript, tsx, vitest, @types/pg, eslint, typescript-eslint, prettier, autocannon, pidusage.
+  - Dev dependencies: typescript, tsx, vitest, @types/pg, eslint, typescript-eslint, prettier (+ globals for ESLint). autocannon and pidusage were added at first and later removed (see T7.2).
   - Deps: T0.1
 - [x] **T0.3 Scripts**
   - `dev`, `build`, `start`, `db:create`, `db:migrate`, `db:test:reset`, `test`, `lint`, `sim`, `loadtest`.
@@ -156,16 +156,16 @@
 
 ## Phase 7 — Load test & report
 
-- [ ] **T7.1 Rule seed script**
+- [x] **T7.1 Rule seed script**
   - ≥ 20 rules, THRESHOLD + WINDOW.
   - Deps: T2.8 · Spec: specs §7
-- [ ] **T7.2 Harness**
-  - LT-A/B/C × 3 runs; latency, completion time, errors/503s, CPU/memory via pidusage, DB row-count check.
+- [x] **T7.2 Harness**
+  - LT-A/B/C × 3 runs; latency, completion time, errors/503s, server CPU/event-loop/memory via an in-process probe (`loadtest/probe.mjs`; `pidusage` was dropped because it spawns PowerShell per sample on Windows and distorted results), DB row-count check.
   - Deps: T6.3, T7.1 · Spec: FR-11.1
-- [ ] **T7.3 Run and tune**
+- [x] **T7.3 Run and tune**
   - Prod build, `REQUEST_LOGGING=false`. Adjust flush and pool knobs (design §8) until FR-3 and NFR-2 pass.
   - Deps: T7.2 · Spec: FR-3, NFR-1, NFR-2
-- [ ] **T7.4 Write report**
+- [x] **T7.4 Write report**
   - `docs/LOAD_TEST_REPORT.md`: machine specs, method, tables, pass/fail, analysis.
   - Deps: T7.3 · Spec: FR-11.2
 
