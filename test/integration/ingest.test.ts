@@ -150,6 +150,81 @@ describe.skipIf(!testDbUrl)('ingestion (FR-1, FR-2, FR-3, FR-7)', () => {
       expect(statuses).toEqual([202, 202, 202, 202, 202]);
       expect(await count('readings')).toBe(5);
     });
+
+    it('after a failed commit, rebuilds windows from stored data; a retry then succeeds', async () => {
+      // Make inserts for one sensor fail inside the database.
+      await pool.query(`
+        CREATE FUNCTION fail_readings() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          IF NEW.sensor_id = 'fail-me' THEN RAISE EXCEPTION 'injected failure'; END IF;
+          RETURN NEW;
+        END $$;
+        CREATE TRIGGER fail_readings BEFORE INSERT ON readings
+          FOR EACH ROW EXECUTE FUNCTION fail_readings();`);
+      const { app, engine } = makeApp(pool, { COMMIT_RETRY_BUDGET_MS: '200' });
+      const rule = (
+        await app.inject({
+          method: 'POST',
+          url: '/api/v1/rules',
+          payload: {
+            kind: 'WINDOW',
+            type: 'temperature',
+            operator: 'gt',
+            threshold: 1000,
+            aggregation: 'avg',
+            windowSeconds: 600,
+          },
+        })
+      ).json();
+      const post = (sensorId: string) =>
+        app.inject({ method: 'POST', url: '/api/v1/readings', payload: reading({ sensorId }) });
+
+      expect((await post('ok')).statusCode).toBe(202);
+      const failed = await post('fail-me');
+      expect(failed.statusCode).toBe(503);
+      expect(failed.headers['retry-after']).toBe('1');
+      await app.pipeline.flushAll(); // wait for the post-failure window rebuild
+
+      // The never-stored reading is gone from window state; stored ones remain.
+      expect(engine.windows.get(rule.id, 'fail-me')).toBeUndefined();
+      expect(engine.windows.get(rule.id, 'ok')?.size).toBe(1);
+      expect(await count('readings')).toBe(1);
+
+      // 503 means nothing was stored, so the client can safely retry.
+      await pool.query('DROP TRIGGER fail_readings ON readings');
+      expect((await post('fail-me')).statusCode).toBe(202);
+      expect(await count('readings')).toBe(2);
+      expect(engine.windows.get(rule.id, 'fail-me')?.size).toBe(1);
+    });
+  });
+
+  describe('storage semantics', () => {
+    it('stores duplicate readings as sent (FR-3.4)', async () => {
+      const { app } = makeApp(pool);
+      for (let i = 0; i < 2; i++) {
+        await app.inject({ method: 'POST', url: '/api/v1/readings', payload: reading() });
+      }
+      expect(await count('readings')).toBe(2);
+    });
+
+    it('normalises timezone offsets and returns UTC timestamps (NFR-6)', async () => {
+      const { app } = makeApp(pool);
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/rules',
+        payload: { kind: 'THRESHOLD', type: 'temperature', operator: 'gt', threshold: 30 },
+      });
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/readings',
+        payload: reading({ timestamp: '2026-10-12T16:00:00+05:30' }),
+      });
+      const { rows } = await pool.query('SELECT recorded_at FROM readings');
+      expect(rows[0].recorded_at).toEqual(new Date('2026-10-12T10:30:00Z'));
+      const alert = (await app.inject({ method: 'GET', url: '/api/v1/alerts' })).json().items[0];
+      expect(alert.firstTriggeredAt).toBe('2026-10-12T10:30:00.000Z');
+      expect(alert.createdAt).toMatch(/Z$/);
+    });
   });
 
   describe('alerts from ingested readings (FR-5, FR-6, FR-7)', () => {

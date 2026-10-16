@@ -111,21 +111,32 @@
 
 ## Phase 5 — Integration tests
 
-- [ ] **T5.1 Harness**
+- [x] **T5.1 Harness**
   - Reset the test DB per suite, `buildApp()` with test config.
   - Deps: T3.7, T4.3
-- [ ] **T5.2 Ingestion tests**
+- [x] **T5.2 Ingestion tests**
   - 202 only after rows exist, partial batch, 400/413, 503 when the buffer is full, 503 with zero rows when the DB is unreachable.
   - Deps: T5.1 · Spec: FR-1–FR-3, NFR-3
-- [ ] **T5.3 Rule tests**
+- [x] **T5.3 Rule tests**
   - CRUD, validation, enable/disable idempotency, changes take effect immediately, edit leaves existing alerts untouched.
   - Deps: T5.1 · Spec: FR-4
-- [ ] **T5.4 Engine → alert tests**
+- [x] **T5.4 Engine → alert tests**
   - Threshold alert, window alert (incl. history from before rule creation and after a simulated restart), de-dup / `triggerCount`, new alert after resolve, disabled rule doesn't fire, late reading skipped for windows.
   - Deps: T5.1 · Spec: FR-5–FR-7
-- [ ] **T5.5 Lifecycle tests**
+- [x] **T5.5 Lifecycle tests**
   - OPEN→ACK→RESOLVED, OPEN→RESOLVED, idempotent repeats, 409, 404, pagination.
   - Deps: T5.1 · Spec: FR-8, FR-9
+
+**Phase 5 test map** (run with `pnpm test:int`; needs `TEST_DATABASE_URL`; each test resets the DB):
+
+| File | Covers |
+|---|---|
+| `test/helpers/{db,app}.ts` | T5.1 harness: DB reset + migrate, `makeApp()` against the test DB |
+| `test/integration/ingest.test.ts` | T5.2: 202-after-commit, 400/413, partial batch, 503 on buffer full / DB down / failed commit (+ window rebuild, safe retry), graceful close, duplicates, UTC |
+| `test/integration/rules.test.ts` | T5.3: CRUD, validation, 404/400, PATCH semantics, enable/disable idempotency, warm-up, restart reload |
+| `test/integration/engine.test.ts` | T5.3/T5.4 end-to-end: edits and enable/disable affect the next reading and leave alerts untouched; window history from before creation and across a restart; eviction; late readings; per-sensor windows |
+| `test/integration/alerts.test.ts` | T5.5: list/pagination, get, every lifecycle path, idempotency, 409/404, concurrent transitions |
+| `test/integration/migrate.test.ts` | Schema, constraints, one-active-alert index, startup pending-migration check |
 
 ## Phase 6 — Simulator
 

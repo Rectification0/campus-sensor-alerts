@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { migrate } from '../../src/db/migrate.js';
+import { migrate, pendingMigrations } from '../../src/db/migrate.js';
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -21,7 +21,10 @@ describe.skipIf(!url)('migrations (TEST_DATABASE_URL)', () => {
   });
 
   it('applies 001_init.sql once and is idempotent', async () => {
+    // The startup check (T3.7) reports unapplied files, even before schema_migrations exists.
+    expect(await pendingMigrations(pool)).toEqual(['001_init.sql']);
     expect(await migrate(url!)).toEqual(['001_init.sql']);
+    expect(await pendingMigrations(pool)).toEqual([]);
     expect(await migrate(url!)).toEqual([]);
     const { rows } = await pool.query(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1`,
