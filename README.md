@@ -31,7 +31,7 @@ Out of scope, per the brief: frontend, dashboard, authentication, notifications.
 - **pnpm 11.** `corepack enable` picks the pinned version from `package.json`. Alternatively: `npm install -g pnpm@11`.
 - **PostgreSQL 18 or newer**, running and reachable. The schema uses PostgreSQL 18's built-in `uuidv7()`.
 
-Examples use a POSIX shell: macOS/Linux, or Git Bash on Windows.
+Examples use a POSIX shell: macOS/Linux, or Git Bash on Windows. For Windows PowerShell, see [PowerShell equivalents](#powershell-equivalents).
 
 ## Setup
 
@@ -157,6 +157,81 @@ Pagination: pass the response's `nextCursor` as `?cursor=`. `limit` is 1–200 (
 ```json
 {"statusCode":400,"error":"Bad Request","message":"…","errors":[{"path":"/aggregation","message":"is required for WINDOW rules"}]}
 ```
+
+### PowerShell equivalents
+
+In Windows PowerShell, `curl` is an alias for `Invoke-WebRequest` and does not accept curl's flags. Either call `curl.exe` explicitly, or use `Invoke-RestMethod`:
+
+```powershell
+. .\scripts\api-env.ps1     # sets $API for this PowerShell session
+```
+
+**An organizer creating and modifying an alert rule:**
+
+```powershell
+$RULE_ID = (Invoke-RestMethod -Method Post -Uri "$API/rules" -ContentType "application/json" `
+  -Body '{"kind":"THRESHOLD","type":"temperature","operator":"gt","threshold":30}').id
+Invoke-RestMethod -Method Patch -Uri "$API/rules/$RULE_ID" -ContentType "application/json" -Body '{"threshold":32}'
+Invoke-RestMethod -Method Post -Uri "$API/rules/$RULE_ID/disable" -ContentType "application/json" -Body '{}'
+Invoke-RestMethod -Method Post -Uri "$API/rules/$RULE_ID/enable" -ContentType "application/json" -Body '{}'
+Invoke-RestMethod -Uri "$API/rules" | ConvertTo-Json -Depth 10
+```
+
+**A sensor submitting a reading, and the threshold violation triggering an alert** (34.5 > 32):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "$API/readings" -ContentType "application/json" `
+  -Body '{"sensorId":"library-floor-2","type":"temperature","value":34.5,"timestamp":"2026-10-12T10:30:00Z"}'
+Invoke-RestMethod -Uri "$API/alerts?limit=10" | ConvertTo-Json -Depth 10
+```
+
+**Multiple readings submitted in a batch** (the second item is rejected, the first accepted):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "$API/readings/batch" -ContentType "application/json" -Body @'
+[
+  {"sensorId":"lab-floor-1","type":"temperature","value":27,"timestamp":"2026-10-12T10:30:00Z"},
+  {"sensorId":"lab-floor-1","type":"temperature","value":"hot","timestamp":"2026-10-12T10:31:00Z"}
+]
+'@ | ConvertTo-Json -Depth 10
+```
+
+**A time-window rule triggering an alert.** A 60-second CO₂ average above 1000. The second reading (1100) alone exceeds 1000, but the window average is then exactly 1000, so nothing fires; the third reading lifts the average to 1100 and the alert fires:
+
+```powershell
+$WINDOW_RULE_ID = (Invoke-RestMethod -Method Post -Uri "$API/rules" -ContentType "application/json" `
+  -Body '{"kind":"WINDOW","type":"co2","operator":"gt","threshold":1000,"aggregation":"avg","windowSeconds":60}').id
+Invoke-RestMethod -Method Post -Uri "$API/readings/batch" -ContentType "application/json" -Body @'
+[
+  {"sensorId":"lab-co2-1","type":"co2","value":900,"timestamp":"2026-10-12T11:00:00Z"},
+  {"sensorId":"lab-co2-1","type":"co2","value":1100,"timestamp":"2026-10-12T11:00:20Z"},
+  {"sensorId":"lab-co2-1","type":"co2","value":1300,"timestamp":"2026-10-12T11:00:40Z"}
+]
+'@
+(Invoke-RestMethod -Uri "$API/alerts?limit=50").items | Where-Object ruleId -eq $WINDOW_RULE_ID | ConvertTo-Json
+```
+
+The alert's `triggerValue` is the window average (1100), and `windowStart`/`windowEnd` show the span it covered.
+
+**Viewing, acknowledging and resolving alerts:**
+
+```powershell
+$ALERT_ID = ((Invoke-RestMethod -Uri "$API/alerts?limit=50").items | Where-Object ruleId -eq $RULE_ID)[0].id
+Invoke-RestMethod -Uri "$API/alerts/$ALERT_ID"
+Invoke-RestMethod -Method Post -Uri "$API/alerts/$ALERT_ID/acknowledge" -ContentType "application/json" -Body '{}'
+Invoke-RestMethod -Method Post -Uri "$API/alerts/$ALERT_ID/resolve" -ContentType "application/json" -Body '{}'
+Invoke-RestMethod -Method Post -Uri "$API/alerts/$ALERT_ID/acknowledge" -ContentType "application/json" -Body '{}'   # 409
+```
+
+**Sensor simulator and load test.** The `pnpm` commands are the same in PowerShell; see [Sensor simulator](#sensor-simulator) and [Load test](#load-test). To view the load-test results:
+
+```powershell
+pnpm loadtest
+Get-Content docs\LOAD_TEST_REPORT.md
+```
+
+- **Why `-Body '{}'` on action endpoints:** without `-ContentType`, PowerShell sends `application/x-www-form-urlencoded` (`415`); with it but no body, the JSON parser rejects the empty body (`400`).
+- **Error responses** surface as exceptions; the server's JSON error is in the message.
 
 **Alert behaviour:**
 - While an alert for a (rule, sensor) is `OPEN` or `ACKNOWLEDGED`, further matches increase its `triggerCount` instead of creating duplicates.
